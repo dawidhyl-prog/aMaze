@@ -1,0 +1,1252 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>aMaze, aMaze, aMaze!</title>
+<style>
+  :root{
+    --bg1:#f4efe8;
+    --bg2:#e9e2d6;
+    --card:#ffffff;
+    --ink:#2b2b2b;
+    --muted:#7a746a;
+    --wall:#2b2b2b;
+    --red:#e6484f;
+    --yellow:#e8b923;
+    --blue:#3d8bf2;
+    --purple:#9c5fe0;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    min-height:100vh;
+    background:linear-gradient(160deg,var(--bg1),var(--bg2));
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    color:var(--ink);
+    display:flex;
+    justify-content:center;
+    padding:24px 12px 60px;
+  }
+  .app{
+    width:100%;
+    max-width:720px;
+  }
+  h1{
+    font-size:22px;
+    margin:0 0 4px;
+    text-align:center;
+  }
+  .card{
+    background:var(--card);
+    border-radius:18px;
+    padding:16px;
+    box-shadow:0 8px 24px rgba(0,0,0,0.08);
+    margin-bottom:14px;
+  }
+  .diff-row{
+    display:flex;
+    gap:8px;
+    margin-bottom:14px;
+  }
+  .diff-btn{
+    flex:1;
+    border:1px solid #ddd6c8;
+    background:#faf8f4;
+    border-radius:10px;
+    padding:10px 6px;
+    font-size:13px;
+    cursor:pointer;
+    color:var(--ink);
+    text-align:center;
+  }
+  .diff-btn.active{
+    background:var(--ink);
+    color:#fff;
+    border-color:var(--ink);
+  }
+  .hud{
+    display:flex;
+    flex-wrap:wrap;
+    gap:10px;
+    justify-content:space-between;
+    align-items:center;
+    margin-bottom:12px;
+    font-size:13px;
+  }
+  .hud .stat{
+    background:#faf8f4;
+    border-radius:10px;
+    padding:6px 10px;
+    display:flex;
+    align-items:center;
+    gap:6px;
+  }
+  .hud .stat b{font-size:14px;}
+  .swatch{
+    width:14px;height:14px;border-radius:50%;
+    display:inline-block;
+    box-shadow:inset 0 0 0 2px rgba(0,0,0,0.15);
+  }
+  #mazeOuter{
+    display:flex;
+    justify-content:center;
+    overflow:hidden;
+    border-radius:14px;
+    background:#faf8f4;
+    padding:10px;
+    position:relative;
+  }
+  #mazeWrap{
+    transition:transform 0.6s ease-in-out;
+    will-change:transform;
+  }
+  .maze-row{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:4px;
+  }
+  #transformPanel{
+    width:100%;
+    height:90px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    opacity:0;
+    transition:opacity 0.2s ease-in-out;
+    pointer-events:none;
+  }
+  #transformPanel.show{
+    opacity:0.9;
+  }
+  #transformArrow{
+    width:80px;
+    height:80px;
+    display:block;
+    transition:transform 0.6s ease-in-out;
+    will-change:transform;
+  }
+  #transformArrow svg{
+    width:100%;
+    height:100%;
+    display:block;
+  }
+  canvas{
+    display:block;
+    border-radius:8px;
+    background:#fffdf9;
+  }
+  .shake{
+    animation:shakeAnim 0.28s;
+  }
+  @keyframes shakeAnim{
+    0%{transform:translateX(0);}
+    25%{transform:translateX(-6px);}
+    50%{transform:translateX(6px);}
+    75%{transform:translateX(-4px);}
+    100%{transform:translateX(0);}
+  }
+  .controls{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-top:14px;
+    gap:10px;
+    flex-wrap:wrap;
+  }
+  .pad{
+    display:grid;
+    grid-template-columns:repeat(3,56px);
+    grid-template-rows:repeat(3,56px);
+    gap:6px;
+  }
+  .pad button{
+    border:none;
+    border-radius:12px;
+    background:#f0ece3;
+    font-size:20px;
+    cursor:pointer;
+  }
+  .pad button:active{background:#e2dbcd;}
+  .pad .empty{background:transparent;}
+  .actions{
+    display:flex;
+    gap:8px;
+    flex-wrap:wrap;
+  }
+  button.main-btn{
+    border:none;
+    border-radius:10px;
+    padding:10px 14px;
+    font-size:13px;
+    cursor:pointer;
+    background:var(--ink);
+    color:#fff;
+  }
+  button.ghost-btn{
+    border:1px solid #ddd6c8;
+    background:transparent;
+    border-radius:10px;
+    padding:10px 14px;
+    font-size:13px;
+    cursor:pointer;
+    color:var(--ink);
+  }
+  .legend{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:8px;
+    font-size:13px;
+  }
+  .legend-item{
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+  .legend-item .dot{
+    width:14px;height:14px;border-radius:50%;flex:none;
+  }
+  .instructions{
+    font-size:13px;
+    line-height:1.5;
+    color:var(--muted);
+  }
+  .overlay{
+    position:fixed;
+    inset:0;
+    background:rgba(20,18,14,0.55);
+    display:none;
+    align-items:center;
+    justify-content:center;
+    padding:20px;
+    z-index:10;
+  }
+  .overlay.show{display:flex;}
+  .win-card{
+    background:#fff;
+    border-radius:16px;
+    padding:24px;
+    max-width:340px;
+    width:100%;
+    text-align:center;
+  }
+  .win-card h2{margin-top:0;}
+  .win-stats{
+    text-align:left;
+    font-size:14px;
+    margin:14px 0;
+    background:#faf8f4;
+    border-radius:10px;
+    padding:10px 14px;
+  }
+  .win-stats div{margin:4px 0;}
+  details summary{
+    cursor:pointer;
+    font-size:13px;
+    color:var(--muted);
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <h1>aMaze, aMaze, aMaze!</h1>
+
+  <div class="card">
+    <div class="diff-row">
+      <button class="diff-btn" id="diffEasy">Łatwy</button>
+      <button class="diff-btn" id="diffMedium">Średni</button>
+      <button class="diff-btn" id="diffHard">Trudny</button>
+    </div>
+    <div class="hud">
+      <div class="stat">Czas <b id="hudTime">0:00</b></div>
+      <div class="stat">Ruchy <b id="hudMoves">0</b></div>
+      <div class="stat" style="flex-direction:column;align-items:flex-start;gap:2px;">
+        <div>Zmiany bramek <b id="hudChanges">0</b> / dopuszczalne <b id="hudOptimal">0</b></div>
+        <div style="font-size:11px;color:var(--muted);font-weight:400;">Minimum do ukończenia poziomu: <b id="hudMinimum">0</b></div>
+      </div>
+    </div>
+    <div class="hud" style="margin-bottom:0;">
+      <div class="stat">Aktywny kolor <span class="swatch" id="activeSwatch"></span> <b id="activeName">-</b></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="maze-row">
+      <div id="transformPanel">
+        <div id="transformArrow"></div>
+      </div>
+      <div id="mazeOuter">
+        <div id="mazeWrap">
+          <canvas id="canvas"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <div class="controls">
+      <div class="pad">
+        <div class="empty"></div>
+        <button id="btnN">↑</button>
+        <div class="empty"></div>
+        <button id="btnW">←</button>
+        <div class="empty"></div>
+        <button id="btnE">→</button>
+        <div class="empty"></div>
+        <button id="btnS">↓</button>
+        <div class="empty"></div>
+      </div>
+      <div class="actions">
+        <button class="ghost-btn" id="btnRestart">Od nowa</button>
+        <button class="main-btn" id="btnNew">Nowa plansza</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="legend" id="legendBox"></div>
+  </div>
+
+  <div class="card">
+    <details>
+      <summary>Zasady</summary>
+      <p class="instructions">
+        Poruszasz się strzałkami, klawiszami WASD albo przyciskami na ekranie.
+        Jasne kolorowe linie to bramka aktywnego koloru, przez którą przechodzisz normalnie.
+        Przyciemnione kolorowe linie to bramki nieaktywne. Wejście w taką bramkę aktywuje jej kolor,
+        zamyka wszystkie pozostałe kolory i uruchamia efekt przypisany temu kolorowi.
+        Czasem trzeba się cofnąć, żeby ponownie otworzyć potrzebny kolor.
+        Czarne linie to pełne ściany, nie da się przez nie przejść.
+        Zaraz na starcie zawsze masz do wyboru dwie bramki w różnych kolorach,
+        więc zanim ruszysz, zaplanuj, którą aktywować jako pierwszą.
+        Cel to dotarcie do pola oznaczonego flagą.
+      </p>
+    </details>
+  </div>
+</div>
+
+<div class="overlay show" id="titleOverlay" style="z-index:20;">
+  <div class="win-card">
+    <h2 style="font-size:24px;margin:0 0 2px;">aMaze, aMaze, aMaze!</h2>
+    <div style="color:var(--muted);font-size:13px;margin-bottom:26px;">Created by Dawid Hyla</div>
+    <div style="font-size:13px;line-height:1.5;color:var(--ink);margin-bottom:22px;text-align:left;">
+      Przejście przez kolorowe bramki zmieni układ labiryntu. Ukończ go, nie przechodząc przez kolorowe bramki więcej razy, niż to konieczne.
+    </div>
+    <button class="main-btn" id="btnStart">Zagraj</button>
+  </div>
+</div>
+
+<div class="overlay" id="winOverlay">
+  <div class="win-card">
+    <h2>Ukończono labirynt</h2>
+    <div id="winComment" style="font-size:13px;color:var(--muted);margin-bottom:6px;"></div>
+    <div class="win-stats">
+      <div>Czas: <b id="winTime"></b></div>
+      <div>Ruchy: <b id="winMoves"></b></div>
+      <div>Zmiany bramek: <b id="winChanges"></b> (dopuszczalne <b id="winOptimal"></b>)</div>
+    </div>
+    <button class="main-btn" id="btnPlayAgain">Zagraj jeszcze raz</button>
+  </div>
+</div>
+
+<div class="overlay" id="loseOverlay">
+  <div class="win-card">
+    <h2>Przegrana</h2>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:6px;">Przekroczono dopuszczalną liczbę zmian bramek.</div>
+    <div class="win-stats">
+      <div>Czas: <b id="loseTime"></b></div>
+      <div>Ruchy: <b id="loseMoves"></b></div>
+      <div>Zmiany bramek: <b id="loseChanges"></b> (dopuszczalne <b id="loseAllowed"></b>)</div>
+    </div>
+    <button class="main-btn" id="btnTryAgain">Spróbuj jeszcze raz</button>
+  </div>
+</div>
+
+<script>
+(function(){
+  let N = 8;
+  const CELL = 62;
+  const PAD = 28;
+
+  const COLORS = {
+    yellow:{name:'Żółty', hex:getVar('--yellow'), effect:'Obrót 90°'},
+    red:{name:'Czerwony', hex:getVar('--red'), effect:'Obrót 180°'},
+    blue:{name:'Niebieski', hex:getVar('--blue'), effect:'Przerzut w poziomie'},
+    purple:{name:'Fioletowy', hex:getVar('--purple'), effect:'Przerzut w pionie'}
+  };
+  const FULL_PALETTE = ['yellow','red','blue','purple'];
+
+  const DIRS = ['N','E','S','W'];
+  const DELTA = {N:[0,-1], E:[1,0], S:[0,1], W:[-1,0]};
+  const OPPOSITE = {N:'S', S:'N', E:'W', W:'E'};
+
+  const TRANSFORMS = {
+    yellow: { posMap:(x,y)=>[N-1-y, x],     dirMap:{N:'E',E:'S',S:'W',W:'N'}, css:'rotate(90deg)' },
+    red:    { posMap:(x,y)=>[N-1-x, N-1-y], dirMap:{N:'S',S:'N',E:'W',W:'E'}, css:'rotate(180deg)' },
+    blue:   { posMap:(x,y)=>[N-1-x, y],     dirMap:{N:'N',S:'S',E:'W',W:'E'}, css:'scaleX(-1)' },
+    purple: { posMap:(x,y)=>[x, N-1-y],     dirMap:{N:'S',S:'N',E:'E',W:'W'}, css:'scaleY(-1)' }
+  };
+
+  const DIFFICULTIES = {
+    easy:   { label:'Łatwy',  colors:['yellow','red','blue'], min:3, max:6,  gridSize:6, margin:5, gapBuffer:1, braidChance:0.85, declusterFactor:0.3 },
+    medium: { label:'Średni', colors:['yellow','red','blue','purple'], min:4, max:8,  gridSize:7, margin:3, gapBuffer:2, braidChance:0.85, declusterFactor:0.3 },
+    hard:   { label:'Trudny', colors:['yellow','red','blue','purple'], min:6, max:11, gridSize:8, margin:2, gapBuffer:2, braidChance:0.85, declusterFactor:0.3 }
+  };
+
+  function getVar(name){
+    return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  }
+
+  let audioCtx = null;
+  function ensureAudio(){
+    if(!audioCtx){
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if(audioCtx.state === 'suspended'){
+      audioCtx.resume();
+    }
+  }
+
+  function playTone(freqStart, freqEnd, dur, type, startAt, vol){
+    const now = audioCtx.currentTime + (startAt||0);
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(freqStart, now);
+    osc.frequency.linearRampToValueAtTime(freqEnd, now+dur);
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(vol||0.22, now+0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now+dur);
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start(now);
+    osc.stop(now+dur+0.02);
+  }
+
+  function playTransformSound(colorKey){
+    ensureAudio();
+    if(colorKey==='yellow'){
+      playTone(320, 720, 0.28, 'triangle', 0, 0.22);
+    } else if(colorKey==='red'){
+      playTone(260, 130, 0.42, 'sawtooth', 0, 0.22);
+    } else if(colorKey==='blue'){
+      playTone(460, 460, 0.12, 'sine', 0, 0.2);
+      playTone(460, 460, 0.12, 'sine', 0.13, 0.2);
+    } else if(colorKey==='purple'){
+      playTone(600, 600, 0.1, 'sine', 0, 0.18);
+      playTone(380, 380, 0.14, 'sine', 0.11, 0.18);
+    }
+  }
+
+  function playWinSound(){
+    ensureAudio();
+    playTone(523, 523, 0.14, 'sine', 0, 0.2);
+    playTone(659, 659, 0.14, 'sine', 0.13, 0.2);
+    playTone(784, 784, 0.14, 'sine', 0.26, 0.2);
+    playTone(1046, 1046, 0.22, 'sine', 0.39, 0.22);
+  }
+
+  function playWallSound(){
+    ensureAudio();
+    playTone(160, 90, 0.12, 'square', 0, 0.12);
+  }
+
+  const canvas = document.getElementById('canvas');
+  const ctx = canvas.getContext('2d');
+  const mazeWrap = document.getElementById('mazeWrap');
+  const transformPanel = document.getElementById('transformPanel');
+  const transformArrow = document.getElementById('transformArrow');
+
+  function resizeCanvas(){
+    canvas.width = N*CELL + PAD*2;
+    canvas.height = N*CELL + PAD*2;
+  }
+  resizeCanvas();
+
+  let currentDifficulty = 'medium';
+  let grid, player, goal, activeColor, changes, moves, optimalChanges, allowedChanges, palette;
+  let initialLevelState = null;
+  let isAnimating = false;
+  let gameWon = false;
+  let gameLost = false;
+  let gameStarted = false;
+  let startTime = null;
+  let timerHandle = null;
+
+  function emptyGrid(){
+    const g = [];
+    for(let x=0;x<N;x++){
+      g[x] = [];
+      for(let y=0;y<N;y++){
+        g[x][y] = {N:null,E:null,S:null,W:null};
+      }
+    }
+    return g;
+  }
+
+  function buildMaze(){
+    const cells = emptyGrid();
+    const visited = [];
+    for(let x=0;x<N;x++){ visited[x] = new Array(N).fill(false); }
+    const edgeList = [];
+    let stack = [[0,0]];
+    visited[0][0] = true;
+    while(stack.length){
+      const [x,y] = stack[stack.length-1];
+      const options = [];
+      for(const dir of DIRS){
+        const [dx,dy] = DELTA[dir];
+        const nx = x+dx, ny = y+dy;
+        if(nx>=0 && nx<N && ny>=0 && ny<N && !visited[nx][ny]){
+          options.push({dir, nx, ny});
+        }
+      }
+      if(options.length===0){ stack.pop(); continue; }
+      const pick = options[Math.floor(Math.random()*options.length)];
+      const id = edgeList.length;
+      edgeList.push({x1:x, y1:y, dir:pick.dir});
+      cells[x][y][pick.dir] = {edgeId:id};
+      cells[pick.nx][pick.ny][OPPOSITE[pick.dir]] = {edgeId:id};
+      visited[pick.nx][pick.ny] = true;
+      stack.push([pick.nx, pick.ny]);
+    }
+    return {cells, edgeList};
+  }
+
+  function ensureStartBranch(cells, edgeList){
+    // Start cell (0,0) only has E and S as valid directions (corner of the grid).
+    // Guarantee both exist, so the player always leaves the start with a real choice
+    // between two gates instead of a single forced corridor.
+    for(const dir of ['E','S']){
+      if(cells[0][0][dir] === null){
+        const [dx,dy] = DELTA[dir];
+        const nx = 0+dx, ny = 0+dy;
+        const id = edgeList.length;
+        edgeList.push({x1:0, y1:0, dir});
+        cells[0][0][dir] = {edgeId:id};
+        cells[nx][ny][OPPOSITE[dir]] = {edgeId:id};
+      }
+    }
+    return [cells[0][0].E.edgeId, cells[0][0].S.edgeId];
+  }
+
+  function braidMaze(cells, edgeList, braidChance){
+    // A freshly generated maze has exactly one path everywhere, so most cells
+    // are plain corridors and dead ends carry no real decision. This pass finds
+    // dead ends and connects most of them to a neighboring wall, turning the
+    // maze into one with many genuine junctions instead of a single forced route.
+    for(let x=0;x<N;x++){
+      for(let y=0;y<N;y++){
+        const openDirs = DIRS.filter(d=>cells[x][y][d]!==null);
+        if(openDirs.length===1 && Math.random()<braidChance){
+          const closedDirs = DIRS.filter(d=>{
+            if(cells[x][y][d]!==null) return false;
+            const [dx,dy] = DELTA[d];
+            const nx = x+dx, ny = y+dy;
+            return nx>=0 && nx<N && ny>=0 && ny<N;
+          });
+          if(closedDirs.length===0) continue;
+          const dir = closedDirs[Math.floor(Math.random()*closedDirs.length)];
+          const [dx,dy] = DELTA[dir];
+          const nx = x+dx, ny = y+dy;
+          const id = edgeList.length;
+          edgeList.push({x1:x, y1:y, dir});
+          cells[x][y][dir] = {edgeId:id};
+          cells[nx][ny][OPPOSITE[dir]] = {edgeId:id};
+        }
+      }
+    }
+  }
+
+  function findPathEdges(cells){
+    const prev = {};
+    const visited = [];
+    for(let x=0;x<N;x++){ visited[x] = new Array(N).fill(false); }
+    let queue = [[0,0]];
+    visited[0][0] = true;
+    while(queue.length){
+      const [x,y] = queue.shift();
+      if(x===N-1 && y===N-1) break;
+      for(const dir of DIRS){
+        const cellVal = cells[x][y][dir];
+        if(cellVal){
+          const [dx,dy] = DELTA[dir];
+          const nx=x+dx, ny=y+dy;
+          if(!visited[nx][ny]){
+            visited[nx][ny] = true;
+            prev[nx+','+ny] = {x,y,dir};
+            queue.push([nx,ny]);
+          }
+        }
+      }
+    }
+    const path = [];
+    let cx=N-1, cy=N-1;
+    while(!(cx===0 && cy===0)){
+      const p = prev[cx+','+cy];
+      if(!p) return [];
+      const edgeId = cells[p.x][p.y][p.dir].edgeId;
+      path.push(edgeId);
+      cx = p.x; cy = p.y;
+    }
+    path.reverse();
+    return path;
+  }
+
+  function buildCellEdgeMap(edgeList){
+    const map = [];
+    for(let x=0;x<N;x++){ map[x]=[]; for(let y=0;y<N;y++){ map[x][y]=[]; } }
+    for(let id=0; id<edgeList.length; id++){
+      const e = edgeList[id];
+      const [dx,dy] = DELTA[e.dir];
+      const x2 = e.x1+dx, y2 = e.y1+dy;
+      map[e.x1][e.y1].push(id);
+      map[x2][y2].push(id);
+    }
+    return map;
+  }
+
+  function assignColorsDeclustered(edgeList, colorPalette, declusterFactor){
+    // Plain random-per-edge colors often put the same color on several gates
+    // around one junction by pure chance, which feels repetitive and skips
+    // real decisions. This version lowers the odds of repeating a color that
+    // a neighboring gate at the same junction already has.
+    const colors = {};
+    const cellEdgeMap = buildCellEdgeMap(edgeList);
+    const order = edgeList.map((_,i)=>i);
+    for(let i=order.length-1;i>0;i--){
+      const j = Math.floor(Math.random()*(i+1));
+      [order[i],order[j]] = [order[j],order[i]];
+    }
+    for(const id of order){
+      const e = edgeList[id];
+      const [dx,dy] = DELTA[e.dir];
+      const x2 = e.x1+dx, y2 = e.y1+dy;
+      const neighborColors = [];
+      for(const nid of cellEdgeMap[e.x1][e.y1]){ if(nid!==id && colors[nid]!==undefined) neighborColors.push(colors[nid]); }
+      for(const nid of cellEdgeMap[x2][y2]){ if(nid!==id && colors[nid]!==undefined) neighborColors.push(colors[nid]); }
+      const weights = colorPalette.map(c=>{
+        let w = 1;
+        for(const nc of neighborColors){ if(nc===c) w *= declusterFactor; }
+        return w;
+      });
+      const total = weights.reduce((a,b)=>a+b,0);
+      let r = Math.random()*total;
+      let chosen = colorPalette[colorPalette.length-1];
+      for(let i=0;i<colorPalette.length;i++){
+        if(r < weights[i]){ chosen = colorPalette[i]; break; }
+        r -= weights[i];
+      }
+      colors[id] = chosen;
+    }
+    return colors;
+  }
+
+  function countTransitions(pathEdges, colors){
+    let count = 0;
+    for(let i=1;i<pathEdges.length;i++){
+      if(colors[pathEdges[i]] !== colors[pathEdges[i-1]]) count++;
+    }
+    return count;
+  }
+
+  function addExtraLoops(cells, edgeList, count){
+    const candidates = [];
+    for(let x=0;x<N;x++){
+      for(let y=0;y<N;y++){
+        for(const dir of ['E','S']){
+          const [dx,dy] = DELTA[dir];
+          const nx = x+dx, ny = y+dy;
+          if(nx>=0 && nx<N && ny>=0 && ny<N && cells[x][y][dir]===null){
+            candidates.push({x,y,dir,nx,ny});
+          }
+        }
+      }
+    }
+    for(let i=candidates.length-1;i>0;i--){
+      const j = Math.floor(Math.random()*(i+1));
+      [candidates[i],candidates[j]] = [candidates[j],candidates[i]];
+    }
+    const picked = candidates.slice(0, Math.min(count, candidates.length));
+    for(const c of picked){
+      const id = edgeList.length;
+      edgeList.push({x1:c.x, y1:c.y, dir:c.dir});
+      cells[c.x][c.y][c.dir] = {edgeId:id};
+      cells[c.nx][c.ny][OPPOSITE[c.dir]] = {edgeId:id};
+    }
+  }
+
+  function buildAdjacency(edgeList, colors){
+    const adj = [];
+    for(let x=0;x<N;x++){ adj[x]=[]; for(let y=0;y<N;y++){ adj[x][y]=[]; } }
+    for(let id=0; id<edgeList.length; id++){
+      const e = edgeList[id];
+      const c = colors[id];
+      const [dx,dy] = DELTA[e.dir];
+      const x2 = e.x1+dx, y2 = e.y1+dy;
+      adj[e.x1][e.y1].push({nx:x2, ny:y2, color:c});
+      adj[x2][y2].push({nx:e.x1, ny:e.y1, color:c});
+    }
+    return adj;
+  }
+
+  function solveMaze(adj, startX, startY, initialColor, goalX, goalY, colorPalette){
+    const dist = {};
+    const startKey = startX+','+startY+','+initialColor;
+    dist[startKey] = 0;
+    let deque = [startKey];
+    while(deque.length){
+      const curKey = deque.shift();
+      const parts = curKey.split(',');
+      const cx = parseInt(parts[0],10), cy = parseInt(parts[1],10), ccolor = parts[2];
+      const curDist = dist[curKey];
+      for(const nb of adj[cx][cy]){
+        const cost = (nb.color===ccolor) ? 0 : 1;
+        const nKey = nb.nx+','+nb.ny+','+nb.color;
+        const newDist = curDist + cost;
+        if(dist[nKey]===undefined || newDist < dist[nKey]){
+          dist[nKey] = newDist;
+          if(cost===0) deque.unshift(nKey); else deque.push(nKey);
+        }
+      }
+    }
+    let bestDist = Infinity;
+    for(const c of colorPalette){
+      const k = goalX+','+goalY+','+c;
+      if(dist[k]!==undefined && dist[k]<bestDist) bestDist = dist[k];
+    }
+    return bestDist;
+  }
+
+  function generateLevel(difficultyKey){
+    if(difficultyKey) currentDifficulty = difficultyKey;
+    const diff = DIFFICULTIES[currentDifficulty];
+    N = diff.gridSize;
+    resizeCanvas();
+    palette = diff.colors;
+    const extraLoopCount = Math.ceil(N/3);
+    const minGap = diff.margin + diff.gapBuffer;
+    let best = null;
+    for(let mazeAttempt=0; mazeAttempt<40; mazeAttempt++){
+      const {cells, edgeList} = buildMaze();
+      const startEdgeIds = ensureStartBranch(cells, edgeList);
+      braidMaze(cells, edgeList, diff.braidChance);
+      const treePathEdges = findPathEdges(cells);
+      if(treePathEdges.length < diff.min + 1) continue;
+      addExtraLoops(cells, edgeList, extraLoopCount);
+      for(let colorAttempt=0; colorAttempt<800; colorAttempt++){
+        const colors = assignColorsDeclustered(edgeList, palette, diff.declusterFactor);
+        if(colors[startEdgeIds[0]] === colors[startEdgeIds[1]]) continue;
+        const initialColor = colors[treePathEdges[0]];
+        const treeOnlyCost = countTransitions(treePathEdges, colors);
+        const adj = buildAdjacency(edgeList, colors);
+        const trueOptimal = solveMaze(adj, 0, 0, initialColor, N-1, N-1, palette);
+        const gap = treeOnlyCost - trueOptimal;
+        if(trueOptimal>=diff.min && trueOptimal<=diff.max && gap>=minGap){
+          finalizeLevel(edgeList, colors, initialColor, trueOptimal);
+          updateDiffButtons();
+          renderLegend();
+          return;
+        }
+        const mid = (diff.min+diff.max)/2;
+        const score = Math.abs(trueOptimal-mid) + Math.max(0, minGap-gap)*2;
+        if(!best || score < best.score){
+          best = {edgeList, colors, initialColor, trueOptimal, score};
+        }
+      }
+    }
+    if(best){
+      finalizeLevel(best.edgeList, best.colors, best.initialColor, best.trueOptimal);
+    }
+    updateDiffButtons();
+    renderLegend();
+  }
+
+  function finalizeLevel(edgeList, colors, initialColor, transitions){
+    const g = emptyGrid();
+    for(let id=0; id<edgeList.length; id++){
+      const e = edgeList[id];
+      const c = colors[id];
+      const [dx,dy] = DELTA[e.dir];
+      const x2 = e.x1+dx, y2 = e.y1+dy;
+      g[e.x1][e.y1][e.dir] = c;
+      g[x2][y2][OPPOSITE[e.dir]] = c;
+    }
+    grid = g;
+    player = {x:0, y:0};
+    goal = {x:N-1, y:N-1};
+    activeColor = initialColor;
+    optimalChanges = transitions;
+    const margin = DIFFICULTIES[currentDifficulty].margin;
+    allowedChanges = (margin===null) ? Infinity : transitions + margin;
+    changes = 0;
+    moves = 0;
+    gameWon = false;
+    gameLost = false;
+    isAnimating = false;
+    initialLevelState = { grid: g, activeColor: activeColor, optimalChanges: transitions, allowedChanges: allowedChanges };
+    document.getElementById('winOverlay').classList.remove('show');
+    document.getElementById('loseOverlay').classList.remove('show');
+    mazeWrap.style.transform = 'none';
+    startTimer();
+    updateHUD();
+    render();
+  }
+
+  function restartLevel(){
+    if(!initialLevelState) return;
+    grid = initialLevelState.grid;
+    player = {x:0, y:0};
+    goal = {x:N-1, y:N-1};
+    activeColor = initialLevelState.activeColor;
+    optimalChanges = initialLevelState.optimalChanges;
+    allowedChanges = initialLevelState.allowedChanges;
+    changes = 0;
+    moves = 0;
+    gameWon = false;
+    gameLost = false;
+    isAnimating = false;
+    document.getElementById('winOverlay').classList.remove('show');
+    document.getElementById('loseOverlay').classList.remove('show');
+    mazeWrap.style.transition = 'none';
+    mazeWrap.style.transform = 'none';
+    requestAnimationFrame(()=>{
+      requestAnimationFrame(()=>{
+        mazeWrap.style.transition = 'transform 0.6s ease-in-out';
+      });
+    });
+    updateHUD();
+    render();
+  }
+
+  function transformGrid(g, t){
+    const ng = emptyGrid();
+    for(let x=0;x<N;x++){
+      for(let y=0;y<N;y++){
+        for(const dir of DIRS){
+          const val = g[x][y][dir];
+          if(val !== null){
+            const [nx, ny] = t.posMap(x,y);
+            const ndir = t.dirMap[dir];
+            ng[nx][ny][ndir] = val;
+          }
+        }
+      }
+    }
+    return ng;
+  }
+
+  function startTimer(){
+    startTime = Date.now();
+    if(timerHandle) clearInterval(timerHandle);
+    timerHandle = setInterval(()=>{
+      if(gameWon || gameLost) return;
+      const secs = Math.floor((Date.now()-startTime)/1000);
+      const m = Math.floor(secs/60);
+      const s = secs%60;
+      document.getElementById('hudTime').textContent = m+':'+(s<10?'0':'')+s;
+    }, 250);
+  }
+
+  function updateHUD(){
+    document.getElementById('hudMoves').textContent = moves;
+    document.getElementById('hudChanges').textContent = changes;
+    document.getElementById('hudOptimal').textContent = (allowedChanges===Infinity) ? 'brak' : allowedChanges;
+    document.getElementById('hudMinimum').textContent = optimalChanges;
+    document.getElementById('activeName').textContent = COLORS[activeColor].name;
+    document.getElementById('activeSwatch').style.background = COLORS[activeColor].hex;
+  }
+
+  function updateDiffButtons(){
+    document.getElementById('diffEasy').classList.toggle('active', currentDifficulty==='easy');
+    document.getElementById('diffMedium').classList.toggle('active', currentDifficulty==='medium');
+    document.getElementById('diffHard').classList.toggle('active', currentDifficulty==='hard');
+  }
+
+  function renderLegend(){
+    const box = document.getElementById('legendBox');
+    box.innerHTML = '';
+    for(const key of FULL_PALETTE){
+      const inUse = palette.includes(key);
+      const item = document.createElement('div');
+      item.className = 'legend-item';
+      item.style.opacity = inUse ? '1' : '0.35';
+      item.innerHTML = '<span class="dot" style="background:'+COLORS[key].hex+'"></span>'+COLORS[key].name+': '+COLORS[key].effect;
+      box.appendChild(item);
+    }
+  }
+
+  function render(){
+    ctx.clearRect(0,0,canvas.width, canvas.height);
+    for(let x=0;x<N;x++){
+      for(let y=0;y<N;y++){
+        const px = PAD + x*CELL;
+        const py = PAD + y*CELL;
+        drawSide(px,py,'N', grid[x][y].N);
+        drawSide(px,py,'E', grid[x][y].E);
+        drawSide(px,py,'S', grid[x][y].S);
+        drawSide(px,py,'W', grid[x][y].W);
+      }
+    }
+    drawMarker(0,0,'#c7c1b3','S');
+    drawGoalMarker(goal.x, goal.y);
+    const ppx = PAD + player.x*CELL + CELL/2;
+    const ppy = PAD + player.y*CELL + CELL/2;
+    ctx.beginPath();
+    ctx.arc(ppx,ppy, CELL*0.28, 0, Math.PI*2);
+    const grad = ctx.createRadialGradient(ppx-4,ppy-4,2,ppx,ppy,CELL*0.28);
+    grad.addColorStop(0,'#ffffff');
+    grad.addColorStop(1,COLORS[activeColor].hex);
+    ctx.fillStyle = grad;
+    ctx.fill();
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = '#2b2b2b';
+    ctx.stroke();
+  }
+
+  function drawMarker(x,y,color,label){
+    const px = PAD + x*CELL + CELL/2;
+    const py = PAD + y*CELL + CELL/2;
+    ctx.font = 'bold 16px sans-serif';
+    ctx.fillStyle = color;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(label, px, py - CELL*0.28);
+  }
+
+  function drawGoalMarker(x,y){
+    const px = PAD + x*CELL + CELL/2;
+    const py = PAD + y*CELL + CELL/2;
+    const glow = ctx.createRadialGradient(px,py,2,px,py,CELL*0.46);
+    glow.addColorStop(0,'rgba(76,175,109,0.4)');
+    glow.addColorStop(1,'rgba(76,175,109,0)');
+    ctx.beginPath();
+    ctx.arc(px,py,CELL*0.46,0,Math.PI*2);
+    ctx.fillStyle = glow;
+    ctx.fill();
+
+    const poleX = px - 5;
+    const topY = py - CELL*0.32;
+    const botY = py + CELL*0.3;
+    ctx.beginPath();
+    ctx.moveTo(poleX, topY);
+    ctx.lineTo(poleX, botY);
+    ctx.strokeStyle = '#2b2b2b';
+    ctx.lineWidth = 2.5;
+    ctx.lineCap = 'round';
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(poleX, topY);
+    ctx.lineTo(poleX+17, topY+6);
+    ctx.lineTo(poleX, topY+12);
+    ctx.closePath();
+    ctx.fillStyle = '#e6484f';
+    ctx.fill();
+    ctx.strokeStyle = '#2b2b2b';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.arc(poleX, botY+2, 3, 0, Math.PI*2);
+    ctx.fillStyle = '#2b2b2b';
+    ctx.fill();
+  }
+
+  const ICON_INK = '#1f1f1f';
+
+  function drawSmallArrowHead(x, y, angle, len, color){
+    const spread = Math.PI/6.5;
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x - len*Math.cos(angle-spread), y - len*Math.sin(angle-spread));
+    ctx.moveTo(x, y);
+    ctx.lineTo(x - len*Math.cos(angle+spread), y - len*Math.sin(angle+spread));
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1.6;
+    ctx.lineCap = 'round';
+    ctx.stroke();
+  }
+
+  function drawArcArrow(cx, cy, r, startDeg, endDeg, color){
+    const start = startDeg*Math.PI/180;
+    const end = endDeg*Math.PI/180;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, start, end, false);
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1.8;
+    ctx.lineCap = 'round';
+    ctx.stroke();
+    const ex = cx + r*Math.cos(end);
+    const ey = cy + r*Math.sin(end);
+    const tangent = end + Math.PI/2;
+    drawSmallArrowHead(ex, ey, tangent, r*0.55, color);
+  }
+
+  function drawDoubleArrow(cx, cy, halfLen, orientation, color){
+    ctx.beginPath();
+    if(orientation==='horizontal'){
+      ctx.moveTo(cx-halfLen, cy);
+      ctx.lineTo(cx+halfLen, cy);
+    } else {
+      ctx.moveTo(cx, cy-halfLen);
+      ctx.lineTo(cx, cy+halfLen);
+    }
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1.8;
+    ctx.stroke();
+    if(orientation==='horizontal'){
+      drawSmallArrowHead(cx-halfLen, cy, Math.PI, halfLen*0.5, color);
+      drawSmallArrowHead(cx+halfLen, cy, 0, halfLen*0.5, color);
+    } else {
+      drawSmallArrowHead(cx, cy-halfLen, -Math.PI/2, halfLen*0.5, color);
+      drawSmallArrowHead(cx, cy+halfLen, Math.PI/2, halfLen*0.5, color);
+    }
+  }
+
+  function drawGateIcon(px, py, colorKey, alpha){
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.beginPath();
+    ctx.arc(px, py, CELL*0.24, 0, Math.PI*2);
+    ctx.fillStyle = '#fffdf9';
+    ctx.fill();
+    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = COLORS[colorKey].hex;
+    ctx.stroke();
+
+    const r = CELL*0.13;
+    if(colorKey==='yellow'){
+      drawArcArrow(px, py, r, -90, 0, ICON_INK);
+    } else if(colorKey==='red'){
+      drawArcArrow(px, py, r, -90, 90, ICON_INK);
+    } else if(colorKey==='blue'){
+      drawDoubleArrow(px, py, r*1.25, 'horizontal', ICON_INK);
+    } else if(colorKey==='purple'){
+      drawDoubleArrow(px, py, r*1.25, 'vertical', ICON_INK);
+    }
+    ctx.restore();
+  }
+
+  function drawSide(px,py,dir,val){
+    let x1,y1,x2,y2;
+    if(dir==='N'){ x1=px; y1=py; x2=px+CELL; y2=py; }
+    if(dir==='S'){ x1=px; y1=py+CELL; x2=px+CELL; y2=py+CELL; }
+    if(dir==='W'){ x1=px; y1=py; x2=px; y2=py+CELL; }
+    if(dir==='E'){ x1=px+CELL; y1=py; x2=px+CELL; y2=py+CELL; }
+    ctx.beginPath();
+    ctx.moveTo(x1,y1);
+    ctx.lineTo(x2,y2);
+    let iconAlpha = null;
+    if(val===null){
+      ctx.strokeStyle = getVar('--wall') || '#2b2b2b';
+      ctx.lineWidth = 8;
+      ctx.globalAlpha = 1;
+    } else {
+      ctx.strokeStyle = COLORS[val].hex;
+      if(val===activeColor){
+        ctx.lineWidth = 11;
+        ctx.globalAlpha = 1;
+        iconAlpha = 1;
+      } else {
+        ctx.lineWidth = 8;
+        ctx.globalAlpha = 0.32;
+        iconAlpha = 0.4;
+      }
+    }
+    ctx.lineCap = 'round';
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+    if(val!==null){
+      drawGateIcon((x1+x2)/2, (y1+y2)/2, val, iconAlpha);
+    }
+  }
+
+  function transformArrowMarkup(colorKey){
+    const hex = '#2b2b2b';
+    if(colorKey==='yellow' || colorKey==='red'){
+      // classic curved "rotate" arrow. The 90 vs 180 degree turn is shown by
+      // spinning this exact icon with the exact same transform as the maze,
+      // not by changing its drawn shape.
+      return '<svg viewBox="0 0 24 24" fill="none" stroke="'+hex+'" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>';
+    } else if(colorKey==='blue'){
+      return '<svg viewBox="0 0 24 24" fill="none" stroke="'+hex+'" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="2" x2="12" y2="22" stroke-dasharray="3 3"/><polyline points="7 8 3 12 7 16"/><polyline points="17 8 21 12 17 16"/></svg>';
+    } else {
+      return '<svg viewBox="0 0 24 24" fill="none" stroke="'+hex+'" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="2" y1="12" x2="22" y2="12" stroke-dasharray="3 3"/><polyline points="8 7 12 3 16 7"/><polyline points="8 17 12 21 16 17"/></svg>';
+    }
+  }
+
+  function armTransformArrow(colorKey, cssTransform){
+    transformArrow.innerHTML = transformArrowMarkup(colorKey);
+    transformPanel.classList.add('show');
+    transformArrow.style.transform = cssTransform;
+  }
+
+  function disarmTransformArrow(){
+    transformPanel.classList.remove('show');
+    setTimeout(()=>{
+      transformArrow.style.transition = 'none';
+      transformArrow.style.transform = 'none';
+      requestAnimationFrame(()=>{
+        requestAnimationFrame(()=>{
+          transformArrow.style.transition = 'transform 0.6s ease-in-out';
+        });
+      });
+    }, 220);
+  }
+
+  function pulsePlayer(){
+    const start = performance.now();
+    const duration = 550;
+    function frame(now){
+      const elapsed = now - start;
+      const p = Math.min(elapsed/duration, 1);
+      render();
+      const ppx = PAD + player.x*CELL + CELL/2;
+      const ppy = PAD + player.y*CELL + CELL/2;
+      const radius = CELL*0.32 + p*CELL*0.55;
+      const alpha = 1 - p;
+      ctx.beginPath();
+      ctx.arc(ppx, ppy, radius, 0, Math.PI*2);
+      ctx.strokeStyle = 'rgba(61,139,242,'+(alpha*0.75)+')';
+      ctx.lineWidth = 3;
+      ctx.stroke();
+      if(p < 1){
+        requestAnimationFrame(frame);
+      }
+    }
+    requestAnimationFrame(frame);
+  }
+
+  function shakeFeedback(){
+    mazeWrap.classList.remove('shake');
+    void mazeWrap.offsetWidth;
+    mazeWrap.classList.add('shake');
+  }
+
+  function tryMove(dir){
+    if(isAnimating || gameWon || gameLost || !gameStarted) return;
+    const val = grid[player.x][player.y][dir];
+    if(val===null){
+      shakeFeedback();
+      playWallSound();
+      return;
+    }
+    const [dx,dy] = DELTA[dir];
+    const nx = player.x+dx, ny = player.y+dy;
+    moves++;
+
+    if(val !== activeColor){
+      changes++;
+      const newColor = val;
+      const t = TRANSFORMS[newColor];
+      isAnimating = true;
+      playTransformSound(newColor);
+      armTransformArrow(newColor, t.css);
+      mazeWrap.style.transform = t.css;
+      setTimeout(()=>{
+        activeColor = newColor;
+        grid = transformGrid(grid, t);
+        const np = t.posMap(nx, ny);
+        const gp = t.posMap(goal.x, goal.y);
+        player = {x:np[0], y:np[1]};
+        goal = {x:gp[0], y:gp[1]};
+        mazeWrap.style.transition = 'none';
+        mazeWrap.style.transform = 'none';
+        disarmTransformArrow();
+        render();
+        updateHUD();
+        pulsePlayer();
+        requestAnimationFrame(()=>{
+          requestAnimationFrame(()=>{
+            mazeWrap.style.transition = 'transform 0.6s ease-in-out';
+            isAnimating = false;
+            if(!checkWin()) checkLoss();
+          });
+        });
+      }, 600);
+    } else {
+      player = {x:nx, y:ny};
+      render();
+      updateHUD();
+      checkWin();
+    }
+  }
+
+  function checkWin(){
+    if(player.x===goal.x && player.y===goal.y){
+      gameWon = true;
+      playWinSound();
+      const secs = Math.floor((Date.now()-startTime)/1000);
+      const m = Math.floor(secs/60);
+      const s = secs%60;
+      document.getElementById('winTime').textContent = m+':'+(s<10?'0':'')+s;
+      document.getElementById('winMoves').textContent = moves;
+      document.getElementById('winChanges').textContent = changes;
+      document.getElementById('winOptimal').textContent = (allowedChanges===Infinity) ? 'brak' : allowedChanges;
+      let comment;
+      if(changes<=optimalChanges){
+        comment = 'Przejście optymalne, bez zbędnych zmian.';
+      } else if(changes<=optimalChanges+2){
+        comment = 'Bardzo blisko optymalnej ścieżki.';
+      } else {
+        comment = 'Ukończono, choć trasa miała trochę zakrętów.';
+      }
+      document.getElementById('winComment').textContent = comment;
+      document.getElementById('winOverlay').classList.add('show');
+      return true;
+    }
+    return false;
+  }
+
+  function checkLoss(){
+    if(allowedChanges===Infinity) return;
+    if(changes > allowedChanges){
+      gameLost = true;
+      const secs = Math.floor((Date.now()-startTime)/1000);
+      const m = Math.floor(secs/60);
+      const s = secs%60;
+      document.getElementById('loseTime').textContent = m+':'+(s<10?'0':'')+s;
+      document.getElementById('loseMoves').textContent = moves;
+      document.getElementById('loseChanges').textContent = changes;
+      document.getElementById('loseAllowed').textContent = allowedChanges;
+      document.getElementById('loseOverlay').classList.add('show');
+    }
+  }
+
+  window.addEventListener('keydown', (e)=>{
+    let dir = null;
+    if(e.key==='ArrowUp' || e.key==='w' || e.key==='W') dir='N';
+    if(e.key==='ArrowDown' || e.key==='s' || e.key==='S') dir='S';
+    if(e.key==='ArrowLeft' || e.key==='a' || e.key==='A') dir='W';
+    if(e.key==='ArrowRight' || e.key==='d' || e.key==='D') dir='E';
+    if(dir){
+      e.preventDefault();
+      tryMove(dir);
+    }
+  });
+
+  document.getElementById('btnN').addEventListener('click', ()=>tryMove('N'));
+  document.getElementById('btnS').addEventListener('click', ()=>tryMove('S'));
+  document.getElementById('btnE').addEventListener('click', ()=>tryMove('E'));
+  document.getElementById('btnW').addEventListener('click', ()=>tryMove('W'));
+  document.getElementById('btnNew').addEventListener('click', ()=>generateLevel());
+  document.getElementById('btnStart').addEventListener('click', ()=>{
+    gameStarted = true;
+    document.getElementById('titleOverlay').classList.remove('show');
+    startTimer();
+  });
+  document.getElementById('btnPlayAgain').addEventListener('click', ()=>generateLevel());
+  document.getElementById('btnTryAgain').addEventListener('click', ()=>restartLevel());
+  document.getElementById('btnRestart').addEventListener('click', ()=>{
+    restartLevel();
+  });
+  document.getElementById('diffEasy').addEventListener('click', ()=>generateLevel('easy'));
+  document.getElementById('diffMedium').addEventListener('click', ()=>generateLevel('medium'));
+  document.getElementById('diffHard').addEventListener('click', ()=>generateLevel('hard'));
+
+  generateLevel('medium');
+})();
+</script>
+</body>
+</html>
